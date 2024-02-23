@@ -10,4 +10,4 @@ Bot for searching word combinations in the game "Word by word" on the VKontakte 
 4. `npm i`
 5. `npm run build`
 6. `npm run start`
-7. Login into your account, start the game session and press enter
+7. Log into your account, start the game session, press enter and enjoy the ride!
