@@ -13,14 +13,21 @@ async function main(page: Page) {
   const canvas = await browser.getCanvas(page);
   const canvasCoords = await canvas?.boundingBox();
 
-  let gameEnd = false;
+  const gameEndAbortCtrl = new AbortController();
+  const gameEnded = () => gameEndAbortCtrl.signal.aborted;
   Promise.race([
-    browser
-      .getFrame(page)
-      .then((frame) => frame.waitForSelector("div.l-result", { visible: true, timeout: 185000 })),
-    waitKeyPressed("Press 'ENTER' to stop recognition process!", 190000),
+    browser.getFrame(page).then((frame) =>
+      frame.waitForSelector("div.l-result", {
+        visible: true,
+        signal: gameEndAbortCtrl.signal,
+        timeout: 180_000,
+      })
+    ),
+    waitKeyPressed("Press 'ENTER' to stop recognition process!", {
+      signal: gameEndAbortCtrl.signal,
+    }),
   ])
-    .then(() => (gameEnd = true))
+    .then(() => gameEndAbortCtrl.abort())
     .catch((e) => e);
 
   if (!canvas || !canvasCoords) return main(page);
@@ -31,7 +38,7 @@ async function main(page: Page) {
   console.log("Initial board:\n%O", letters);
 
   const wordsFound = [];
-  for (const node of board.grid.flat()) {
+  crawlLoop: for (const node of board.grid.flat()) {
     const queue = new Queue();
     queue.enqueue([node]);
     while (queue.peek()) {
@@ -68,7 +75,7 @@ async function main(page: Page) {
       for (const node of valid) {
         queue.enqueue(board.selected.concat(node));
       }
-      if (gameEnd) return main(page);
+      if (gameEnded()) break crawlLoop;
     }
   }
   console.dir(
@@ -76,6 +83,7 @@ async function main(page: Page) {
     { maxArrayLength: null }
   );
   console.log("Words found: %d \n", wordsFound.length);
+  gameEndAbortCtrl.abort();
   return main(page);
 }
 

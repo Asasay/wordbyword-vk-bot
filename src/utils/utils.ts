@@ -13,13 +13,24 @@ export function* chunks<T>(arr: T[], n: number): Generator<T[], void> {
   }
 }
 
-export async function waitKeyPressed(message: string, timeout?: number) {
+export async function waitKeyPressed(message: string, options?: waitKeyPressedOptions) {
   const rl = readlinePromises.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
-  const signal = timeout ? AbortSignal.timeout(timeout) : undefined;
+  let signal;
+  if (options) {
+    if ("timeout" in options && typeof options.timeout === "number")
+      signal = AbortSignal.timeout(options.timeout);
+    else {
+      signal = options.signal;
+    }
+  }
   await rl.question(chalk.bgRed(message + "\n"), { signal });
   rl.close();
 }
+
+type waitKeyPressedOptions =
+  | { timeout: number; signal?: never }
+  | { signal: AbortSignal; timeout?: never };
