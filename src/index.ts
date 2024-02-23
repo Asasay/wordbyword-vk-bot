@@ -21,7 +21,7 @@ async function main(page: Page) {
     waitKeyPressed("Press 'ENTER' to stop recognition process!", 190000),
   ])
     .then(() => (gameEnd = true))
-    .catch();
+    .catch((e) => e);
 
   if (!canvas || !canvasCoords) return main(page);
   const image = await browser.getGridScreenshot(canvas!);
