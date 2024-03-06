@@ -2,7 +2,6 @@ import type { Page } from "puppeteer";
 import Board, { BoardNode } from "./board/Board.js";
 import * as browser from "./browser.js";
 import Queue from "./queue/Queue.js";
-import wordsJSON from "./russian_words_list.json" assert { type: "json" };
 import OCR from "./tesseract/tesseract.js";
 import Trie from "./trie/Trie.js";
 import { waitKeyPressed } from "./utils/utils.js";
@@ -32,7 +31,12 @@ async function main(page: Page) {
 
   if (!canvas || !canvasCoords) return main(page);
   const image = await browser.getGridScreenshot(canvas!);
-  const trie = new Trie(wordsJSON);
+
+  const words = (await browser
+    .getFrame(page)
+    .then((frame) => frame.evaluate("_data.words"))) as string[];
+
+  const trie = new Trie(words.map((word) => word.toLowerCase()));
   const letters = await OCR(image);
   const board = new Board(letters);
   console.log("Initial board:\n%O", letters);

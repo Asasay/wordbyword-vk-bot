@@ -3,7 +3,8 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { PuppeteerExtraPluginAdblocker } from "puppeteer-extra-plugin-adblocker";
 import sharp from "sharp";
 import type { ElementHandle, Page } from "puppeteer";
-// import increment from "add-filename-increment";
+import fs from "fs";
+import { RequestInterceptionManager } from "puppeteer-intercept-and-modify-requests";
 
 async function getGridScreenshot(canvas: ElementHandle<HTMLDivElement>) {
   const screenshot = await canvas?.screenshot();
@@ -20,7 +21,6 @@ async function openGamePage() {
   puppeteer.use(new PuppeteerExtraPluginAdblocker({ blockTrackers: true }));
   const browser = await puppeteer.launch({
     headless: false,
-    // executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     userDataDir: "./tmp/chrome-data",
     defaultViewport: { width: 950, height: 1000 },
     args: [`--window-size=850,800`],
@@ -31,18 +31,33 @@ async function openGamePage() {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
   );
 
-  await page.goto("https://vk.com/app4670469");
-  removeWrapper(page);
+  const clientCDP = await browser.target().createCDPSession();
+  const interceptManager = new RequestInterceptionManager(clientCDP);
+  await interceptManager.intercept(
+    {
+      urlPattern: "https://social.wordbyword.me/js/bin/main.vk.js*",
+      resourceType: "Script",
+      modifyResponse: async () => {
+        const data = fs.readFileSync("overrides/social.wordbyword.me/js/bin/main.vk.js", "utf-8");
+        return { 
+          body: data,
+        };
+      },
+    },
+    {
+      urlPattern: "https://social.wordbyword.me/css/bin/main.css*",
+      resourceType: "Stylesheet",
+      modifyResponse: async ({ body }) => {
+        return {
+          body: body!.replace(/(?<=\.l-wrapper .*?)display: flex/s, "display: block"),
+        };
+      },
+    }
+  );
 
+  await page.goto("https://vk.com/app4670469");
   return page;
 }
-
-const removeWrapper = async (page: Page) => {
-  getFrame(page)
-    .then((frame) => frame.$("div.l-wrapper"))
-    .then((el) => el?.evaluate((elem) => (elem.style.display = "block")))
-    .catch((e) => console.log(e));
-};
 
 async function getCanvas(page: Page) {
   const iframe = await getFrame(page);
